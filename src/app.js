@@ -10,6 +10,7 @@ let reticle, updateHitTest;
 let controller; // XR select controller
 let waypoints = [];
 let pathPlaced = false;
+let referenceSpace = null;
 
 // Entry
 initScene();
@@ -119,9 +120,19 @@ function initScene() {
   scene.add(controller);
 
   // Render loop
-  renderer.setAnimationLoop((ts, frame) => {
-    const refSpace = renderer.xr.getReferenceSpace();
-    if (frame) updateHitTest(frame, refSpace);
+  renderer.setAnimationLoop(async (ts, frame) => {
+    // Initialize reference space on first frame
+    if (!referenceSpace && frame) {
+      try {
+        referenceSpace = await renderer.xr.getSession().requestReferenceSpace('local');
+        console.log('[App] Reference space initialized:', referenceSpace);
+      } catch (err) {
+        console.error('[App] Failed to get reference space:', err);
+        return;
+      }
+    }
+
+    if (frame && referenceSpace) updateHitTest(frame, referenceSpace);
 
     // Follow reticle
     if (!pathPlaced && reticle.visible) {
