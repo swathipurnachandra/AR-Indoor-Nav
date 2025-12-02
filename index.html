@@ -1,54 +1,55 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>WebAR Navigation</title>
 
-<head>
-  <meta charset="UTF-8" />
-  <title>AR Indoor Navigation</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <style>
-    :root {
-      color-scheme: light dark;
-    }
+    <!-- A-Frame -->
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
 
-    body {
-      margin: 0;
-      overflow: hidden;
-      font-family: system-ui, sans-serif;
-      background: #000;
-    }
+    <!-- THREE.js + Extras -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.161.0/examples/js/loaders/GLTFLoader.js"></script>
 
-    #app-overlay {
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-    }
+    <!-- Your JS -->
+    <script src="./app.js"></script>
 
-    video#cam {
-      position: fixed;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      z-index: -1;
-      background: #000;
-    }
-  </style>
-  <!-- WebXR Polyfill for broader device support -->
-  <script src="https://cdn.jsdelivr.net/npm/webxr-polyfill@latest/build/webxr-polyfill.js"></script>
-</head>
-
-<body>
-  <div id="app-overlay"></div>
-  <video id="cam" autoplay playsinline muted></video>
-
-  <script type="importmap">
-    {
-      "imports": {
-        "three": "https://cdn.jsdelivr.net/npm/three@0.181.2/build/three.module.js"
+    <style>
+      body, html {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
       }
-    }
-  </script>
-  <script type="module" src="/src/app.js"></script>
-</body>
+    </style>
+  </head>
 
+  <body>
+    <a-scene
+      vr-mode-ui="enabled: false"
+      renderer="colorManagement: true; physicallyCorrectLights: true;"
+      embedded
+      xr="optionalFeatures: hit-test;"
+      id="scene"
+    >
+
+      <!-- Camera -->
+      <a-entity id="camera" camera look-controls></a-entity>
+
+      <!-- Reticle for placement -->
+      <a-entity
+        id="reticle"
+        visible="false"
+        position="0 0 -1"
+        scale="0.2 0.2 0.2"
+        gltf-model="#ring"
+      ></a-entity>
+
+      <!-- Minimal ambient light so objects don’t appear black -->
+      <a-entity light="type: ambient; intensity: 1"></a-entity>
+
+      <!-- Directional light that follows the camera -->
+      <a-entity light="type: directional; intensity: 1.2" position="0 3 1"></a-entity>
+
+    </a-scene>
+  </body>
 </html>
