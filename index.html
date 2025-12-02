@@ -39,25 +39,16 @@
 
 <body>
   <div id="app-overlay"></div>
+  <video id="cam" autoplay playsinline muted></video>
 
-  <!-- A-Frame scene with WebXR AR + dom overlay + hit-test -->
-  <a-scene xr-mode="ar" webxr="optionalFeatures: hit-test, dom-overlay; overlayElement: #app-overlay"
-    renderer="colorManagement:true">
-    <a-assets>
-      <!-- Optional GLTF arrow model: uncomment and point to your file in public/models -->
-      <!-- <a-asset-item id="arrowModel" src="/public/models/arrow.glb"></a-asset-item> -->
-    </a-assets>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.181.2/build/three.module.js"
+      }
+    }
+  </script>
+  <script type="module" src="/src/app.js"></script>
+</body>
 
-    <script type="importmap">
-        {
-          "imports": {
-            "three": "https://cdn.jsdelivr.net/npm/three@0.181.2/build/three.module.js"
-          }
-        }
-        </script>
-
-    <!-- Root to receive placed waypoints; will listen for XR select/tap -->
-    <a-entity id="pathRoot" place-demo-path="reticle: #reticle; arrowModel: #arrowModel"></a-entity>
-    <div id="app-overlay"></div>
-    <video id="cam" autoplay playsinline muted></video>
-    <script type="module" src="/src/app.js"></script>
+</html>

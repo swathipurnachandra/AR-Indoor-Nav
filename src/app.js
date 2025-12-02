@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { setupHitTest } from './core/hit-test.js';
 import { createWaypoint } from './components/waypoint.js';
-import { computeYaw, createArrow as createArrowMesh } from './components/arrow.js';
+import { computeYaw, createArrow } from './components/arrow.js';
 import { buildDemoPath } from './navigation/path.js';
 import { showBlocker, showOverlayButton, showToast } from './utils/ui.js';
 
@@ -21,7 +21,7 @@ async function detectAndStart() {
   console.log('[WebXR] navigator.xr:', xrAvailable);
 
   if (!xrAvailable) {
-    await startCameraFallback('WebXR not available on this browser/device.');
+    showBlocker('WebXR not available on this browser/device.');
     return;
   }
 
@@ -34,7 +34,7 @@ async function detectAndStart() {
   }
 
   if (!arSupported) {
-    await startCameraFallback('immersive-ar not supported. Using camera preview fallback.');
+    showBlocker('immersive-ar not supported on this device.');
     return;
   }
 
@@ -52,30 +52,10 @@ async function detectAndStart() {
         showToast('AR session started');
       } catch (err) {
         console.error('[WebXR] Failed to start AR session:', err);
-        await startCameraFallback('Failed to start AR. Camera fallback active.');
+        showBlocker('Failed to start AR session.');
       }
     }
   });
-}
-
-// -------------------- Fallback Camera --------------------
-async function startCameraFallback(message) {
-  showBlocker(message);
-  try {
-    const stream = await navigator.mediaDevices?.getUserMedia?.({
-      video: { facingMode: { ideal: 'environment' } },
-      audio: false
-    });
-    const v = document.getElementById('cam');
-    if (v) {
-      v.srcObject = stream;
-      await v.play().catch(() => { });
-      console.log('[Camera] Fallback preview started.');
-    }
-  } catch (err) {
-    console.error('[Camera] getUserMedia error:', err);
-    showToast('Camera access failed.');
-  }
 }
 
 // -------------------- 3D Scene Setup --------------------
@@ -106,7 +86,7 @@ function initScene() {
   scene.add(reticle);
 
   // A small reference arrow (follows reticle until a path is placed)
-  const reticleArrow = createArrowMesh({ color: 0x3fa9ff, length: 0.22, headRadius: 0.04 });
+  const reticleArrow = createArrow({ color: 0x3fa9ff, length: 0.22, headRadius: 0.04 });
   reticleArrow.name = 'reticle-arrow';
   scene.add(reticleArrow);
 
@@ -141,7 +121,7 @@ function initScene() {
       const target = reticle.position.clone().add(camDir);
       reticleArrow.rotation.y = computeYaw(reticle.position, target);
     } else {
-      reticleArrow.visible = !pathPlaced && false;
+      reticleArrow.visible = false;
     }
 
     renderer.render(scene, camera);
