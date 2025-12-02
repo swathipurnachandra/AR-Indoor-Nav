@@ -10,69 +10,119 @@ let controller;
 let waypoints = [];
 let pathPlaced = false;
 let xrSession = null;
+let isARMode = false;
 
 // Entry
 initScene();
-detectAndStart().catch(err => {
+startApp().catch(err => {
   console.error('[App] Fatal error:', err);
   showBlocker(`Fatal error: ${err.message}`);
 });
 
-// -------------------- Capability / Start Flow --------------------
-async function detectAndStart() {
-  console.log('=== AR Diagnostic Info ===');
+// -------------------- Main App Entry --------------------
+async function startApp() {
+  console.log('=== AR Navigation App ===');
   console.log('Browser:', navigator.userAgent);
   console.log('Platform:', navigator.platform);
 
-  const xrAvailable = 'xr' in navigator;
-  console.log('[WebXR] navigator.xr available:', xrAvailable);
+  // Try AR first, fallback to camera mode
+  const arAvailable = await tryARMode();
 
+  if (!arAvailable) {
+    await tryCameraMode();
+  }
+}
+
+// -------------------- AR Mode (Progressive Enhancement) --------------------
+async function tryARMode() {
+  console.log('[App] Attempting AR mode...');
+
+  const xrAvailable = 'xr' in navigator;
   if (!xrAvailable) {
-    showBlocker('WebXR not available on this browser/device. Try Chrome, Edge, or Samsung Internet on Android.');
-    return;
+    console.log('[App] WebXR not available, will try camera mode');
+    return false;
   }
 
   let arSupported = false;
   try {
     arSupported = await navigator.xr.isSessionSupported('immersive-ar');
-    console.log('[WebXR] immersive-ar supported:', arSupported);
   } catch (err) {
-    console.warn('[WebXR] isSessionSupported error:', err);
-    showBlocker(`WebXR check failed: ${err.message}`);
-    return;
+    console.warn('[App] AR support check failed:', err.message);
+    return false;
   }
 
   if (!arSupported) {
-    showBlocker('immersive-ar not supported on this device. Ensure you have an AR-capable phone with Android/ARCore or iPhone with iOS 14+.');
-    return;
+    console.log('[App] immersive-ar not supported');
+    return false;
   }
 
-  // AR is supported; show start button
+  // AR is supported
   showOverlayButton({
-    label: 'Start AR',
+    label: 'Start AR Navigation',
     onClick: async () => {
-      if (!renderer) await new Promise(r => setTimeout(r, 50));
       try {
-        console.log('[WebXR] Starting AR session (no features required)...');
+        console.log('[App] Starting AR session...');
         const session = await navigator.xr.requestSession('immersive-ar', {
-          optionalFeatures: ['hit-test', 'dom-overlay', 'hit-test-on-tap'],
-          domOverlay: { root: document.getElementById('app-overlay') }
+          optionalFeatures: ['hit-test']
+        }).catch(err => {
+          console.warn('[App] AR session request failed, trying minimal config:', err.message);
+          return navigator.xr.requestSession('immersive-ar');
         });
 
         xrSession = session;
-        console.log('[WebXR] Session created successfully');
-
+        isARMode = true;
         await renderer.xr.setSession(session);
-        showToast('AR session started!');
-        console.log('[WebXR] Renderer XR session set');
+        showToast('AR Navigation Active');
       } catch (err) {
-        console.error('[WebXR] Failed to start AR session:', err);
-        console.error('[WebXR] Error name:', err.name);
-        console.error('[WebXR] Error message:', err.message);
-        showBlocker(`Failed to start AR session:\n${err.message}`);
+        console.error('[App] Failed to start AR:', err);
+        showToast('AR failed, using camera mode');
+        // Fall back to camera mode
+        await startCameraMode();
       }
     }
   });
+
+  return true;
+}
+
+// -------------------- Camera Fallback Mode --------------------
+async function tryCameraMode() {
+  console.log('[App] Attempting camera mode...');
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' } },
+      audio: false
+    });
+
+    const videoElement = document.getElementById('cam');
+    if (videoElement) {
+      videoElement.srcObject = stream;
+      await videoElement.play();
+      console.log('[App] Camera stream active');
+    }
+
+    // Show start button for camera mode
+    showOverlayButton({
+      label: 'Start Navigation',
+      onClick: async () => {
+        startCameraMode();
+      }
+    });
+
+    return true;
+  } catch (err) {
+    console.error('[App] Camera access failed:', err);
+    showBlocker('Camera access denied. Please grant permission and reload.');
+    return false;
+  }
+}
+
+async function startCameraMode() {
+  console.log('[App] Starting camera navigation mode');
+  isARMode = false;
+  showToast('Camera Navigation Active');
+  // The 3D scene will render on top of the camera feed
 }// -------------------- 3D Scene Setup --------------------
 function initScene() {
   scene = new THREE.Scene();
@@ -90,48 +140,49 @@ function initScene() {
     renderer.setSize(window.innerWidth, window.innerHeight);
   });
 
-  // Light
+  // Lighting
   scene.add(new THREE.HemisphereLight(0xffffff, 0x444466, 1));
+  scene.add(new THREE.DirectionalLight(0xffffff, 0.6));
 
-  // Reticle
+  // Reticle (ring on the floor)
   const ringGeo = new THREE.RingGeometry(0.08, 0.1, 32).rotateX(-Math.PI / 2);
   const ringMat = new THREE.MeshBasicMaterial({ color: 0x00ff66 });
   reticle = new THREE.Mesh(ringGeo, ringMat);
   reticle.visible = false;
   scene.add(reticle);
 
-  // A small reference arrow (follows reticle until a path is placed)
+  // Arrow visual
   const reticleArrow = createArrow({ color: 0x3fa9ff, length: 0.22, headRadius: 0.04 });
   reticleArrow.name = 'reticle-arrow';
   scene.add(reticleArrow);
 
-  // XR controller (tap/select) to place a demo path at the reticle once
+  // Controller
   controller = renderer.xr.getController(0);
   controller.addEventListener('select', () => {
     if (pathPlaced) return;
-    if (!reticle.visible) {
-      showToast('Aim at a surface until the ring appears, then tap.');
-      return;
-    }
     placeDemoPathAtReticle();
   });
   scene.add(controller);
 
-  // Render loop - SIMPLE VERSION
+  // Animation loop - works in both AR and camera mode
   renderer.setAnimationLoop((ts, frame) => {
-    // Just render the scene - let Three.js handle XR internally
     renderer.render(scene, camera);
   });
 }
 
 function placeDemoPathAtReticle() {
-  const origin = reticle.position.clone();
+  // Use center of screen as origin in camera mode, reticle position in AR mode
+  const origin = isARMode && reticle.visible
+    ? reticle.position.clone()
+    : new THREE.Vector3(0, 0, -1);
+
   const points = buildDemoPath(origin, camera);
 
-  // clear if re-placing (shouldn't happen with pathPlaced guard, but safe)
+  // Clear existing waypoints
   for (const wp of waypoints) scene.remove(wp);
   waypoints = [];
 
+  // Create new waypoints
   for (let i = 0; i < points.length; i++) {
     const p = points[i];
     const next = points[i + 1] ?? points[i];
@@ -140,6 +191,7 @@ function placeDemoPathAtReticle() {
     scene.add(wp);
     waypoints.push(wp);
   }
+
   pathPlaced = true;
-  showToast('Path placed. Tap again to do nothing (demo).');
+  showToast('Navigation path placed! 🎯');
 }
