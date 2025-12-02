@@ -1,0 +1,24 @@
+# Node modules and build output
+node_modules/
+dist/
+.vite/
+*.log
+npm-debug.log*
+yarn-error.log*
+
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/*
+
+# Optional caches
+.cache/
+*.swp
+
+# Coverage / tests (if added later)
+coverage/
+*.lcov
+
+# Misc
+*.tgz

@@ -36,6 +36,8 @@ async function detectAndStart() {
   showOverlayButton({
     label: 'Start AR',
     onClick: async () => {
+      if (!renderer) await new Promise(r => setTimeout(r, 50));
+      // then requestSession...
       try {
         const session = await navigator.xr.requestSession('immersive-ar', {
           requiredFeatures: ['hit-test']
@@ -112,6 +114,7 @@ function initScene() {
     // Follow reticle
     if (reticle.visible) {
       arrow.position.copy(reticle.position);
+      // console.log('[HitTest] reticle', reticle.position.toArray());
     }
 
     renderer.render(scene, camera);
