@@ -1,13 +1,12 @@
 import * as THREE from 'three';
-import { setupHitTest } from './core/hit-test.js';
 import { createWaypoint } from './components/waypoint.js';
 import { computeYaw, createArrow } from './components/arrow.js';
 import { buildDemoPath } from './navigation/path.js';
 import { showBlocker, showOverlayButton, showToast } from './utils/ui.js';
 
 let renderer, scene, camera;
-let reticle, updateHitTest;
-let controller; // XR select controller
+let reticle;
+let controller;
 let waypoints = [];
 let pathPlaced = false;
 let xrSession = null;
@@ -54,41 +53,27 @@ async function detectAndStart() {
     onClick: async () => {
       if (!renderer) await new Promise(r => setTimeout(r, 50));
       try {
-        // Try with hit-test first, fallback to basic AR if device doesn't support it
-        let session;
-        try {
-          console.log('[WebXR] Requesting session WITH hit-test...');
-          session = await navigator.xr.requestSession('immersive-ar', {
-            requiredFeatures: ['hit-test'],
-            optionalFeatures: ['dom-overlay'],
-            domOverlay: { root: document.getElementById('app-overlay') }
-          });
-          console.log('[WebXR] ✓ Hit-test session created');
-        } catch (hitTestErr) {
-          console.warn('[WebXR] Hit-test not supported, trying basic AR mode:', hitTestErr.message);
-          // Fallback: AR without hit-test
-          session = await navigator.xr.requestSession('immersive-ar', {
-            optionalFeatures: ['dom-overlay', 'hit-test'],
-            domOverlay: { root: document.getElementById('app-overlay') }
-          });
-          console.log('[WebXR] ✓ Basic AR session created (no hit-test)');
-        }
+        console.log('[WebXR] Starting AR session (no features required)...');
+        const session = await navigator.xr.requestSession('immersive-ar', {
+          optionalFeatures: ['hit-test', 'dom-overlay', 'hit-test-on-tap'],
+          domOverlay: { root: document.getElementById('app-overlay') }
+        });
 
         xrSession = session;
+        console.log('[WebXR] Session created successfully');
+
         await renderer.xr.setSession(session);
-        showToast('AR session started');
+        showToast('AR session started!');
+        console.log('[WebXR] Renderer XR session set');
       } catch (err) {
         console.error('[WebXR] Failed to start AR session:', err);
         console.error('[WebXR] Error name:', err.name);
         console.error('[WebXR] Error message:', err.message);
-        console.error('[WebXR] Stack:', err.stack);
-        showBlocker(`Failed to start AR session:\n${err.message}\n\nTry:\n- Ensure camera permission is granted\n- Check device has ARCore/ARKit\n- Restart the app`);
+        showBlocker(`Failed to start AR session:\n${err.message}`);
       }
     }
   });
-}
-
-// -------------------- 3D Scene Setup --------------------
+}// -------------------- 3D Scene Setup --------------------
 function initScene() {
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
@@ -120,9 +105,6 @@ function initScene() {
   reticleArrow.name = 'reticle-arrow';
   scene.add(reticleArrow);
 
-  // Hit test integration
-  updateHitTest = setupHitTest(renderer, reticle);
-
   // XR controller (tap/select) to place a demo path at the reticle once
   controller = renderer.xr.getController(0);
   controller.addEventListener('select', () => {
@@ -135,35 +117,9 @@ function initScene() {
   });
   scene.add(controller);
 
-  // Render loop
+  // Render loop - SIMPLE VERSION
   renderer.setAnimationLoop((ts, frame) => {
-    // Only process if we have an active XR session and frame
-    if (xrSession && frame) {
-      try {
-        // Get the reference space from Three.js's internal XR manager
-        const refSpace = renderer.xr.getReferenceSpace();
-        if (refSpace) {
-          updateHitTest(frame, refSpace);
-        }
-      } catch (err) {
-        console.warn('[App] Reference space error (will retry):', err.message);
-      }
-    }
-
-    // Follow reticle
-    if (!pathPlaced && reticle.visible) {
-      reticleArrow.visible = true;
-      reticleArrow.position.copy(reticle.position);
-      // orient reticle arrow to match camera forward on XZ
-      const camDir = new THREE.Vector3();
-      camera.getWorldDirection(camDir);
-      camDir.y = 0; camDir.normalize();
-      const target = reticle.position.clone().add(camDir);
-      reticleArrow.rotation.y = computeYaw(reticle.position, target);
-    } else {
-      reticleArrow.visible = false;
-    }
-
+    // Just render the scene - let Three.js handle XR internally
     renderer.render(scene, camera);
   });
 }
