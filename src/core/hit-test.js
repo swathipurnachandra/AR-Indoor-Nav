@@ -8,43 +8,52 @@ export function setupHitTest(renderer, reticle) {
     const session = renderer.xr.getSession();
     if (!requested) {
       try {
-        // Try 'viewer' first, fallback to 'local' if not supported
-        let viewerSpace;
-        try {
-          viewerSpace = await session.requestReferenceSpace('viewer');
-        } catch (err) {
-          console.warn('[HitTest] viewer space not supported, trying local:', err.message);
-          viewerSpace = await session.requestReferenceSpace('local');
-        }
+        console.log('[HitTest] Attempting to set up hit test source...');
 
-        hitTestSource = await session.requestHitTestSource({ space: viewerSpace });
+        // Request hit test source using 'viewer' space
+        // The browser will handle reference space conversion internally
+        hitTestSource = await session.requestHitTestSource({
+          space: await session.requestReferenceSpace('viewer')
+        });
+
         requested = true;
-        console.log('[HitTest] Hit test source acquired successfully');
+        console.log('[HitTest] Hit test source created successfully');
 
         session.addEventListener('end', () => {
           hitTestSource = null;
           requested = false;
+          console.log('[HitTest] Session ended, hit test source cleared');
         });
       } catch (err) {
-        console.error('[HitTest] failed to acquire hit test source:', err);
+        console.error('[HitTest] Failed to set up hit test:', err.message);
+        console.warn('[HitTest] Continuing without hit test - AR may not display reticle');
       }
     }
   });
 
   return function update(frame, referenceSpace) {
     if (!hitTestSource || !frame) return;
-    const results = frame.getHitTestResults(hitTestSource);
-    if (results.length) {
-      const hit = results[0];
-      const pose = hit.getPose(referenceSpace);
-      reticle.visible = true;
-      reticle.position.set(
-        pose.transform.position.x,
-        pose.transform.position.y,
-        pose.transform.position.z
-      );
-      reticle.updateMatrixWorld(true);
-    } else {
+
+    try {
+      const results = frame.getHitTestResults(hitTestSource);
+      if (results.length > 0) {
+        const hit = results[0];
+        const pose = hit.getPose(referenceSpace);
+
+        if (pose) {
+          reticle.visible = true;
+          reticle.position.set(
+            pose.transform.position.x,
+            pose.transform.position.y,
+            pose.transform.position.z
+          );
+          reticle.updateMatrixWorld(true);
+        }
+      } else {
+        reticle.visible = false;
+      }
+    } catch (err) {
+      console.warn('[HitTest] Error during update:', err.message);
       reticle.visible = false;
     }
   };

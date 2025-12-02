@@ -10,7 +10,7 @@ let reticle, updateHitTest;
 let controller; // XR select controller
 let waypoints = [];
 let pathPlaced = false;
-let referenceSpace = null;
+let xrSession = null;
 
 // Entry
 initScene();
@@ -53,20 +53,21 @@ async function detectAndStart() {
     label: 'Start AR',
     onClick: async () => {
       if (!renderer) await new Promise(r => setTimeout(r, 50));
-      // then requestSession...
       try {
         const session = await navigator.xr.requestSession('immersive-ar', {
-          requiredFeatures: ['hit-test', 'dom-overlay'],
-          optionalFeatures: ['dom-overlay-for-handheld-ar'],
+          requiredFeatures: ['hit-test'],
+          optionalFeatures: ['dom-overlay'],
           domOverlay: { root: document.getElementById('app-overlay') }
         });
+        xrSession = session;
         await renderer.xr.setSession(session);
         showToast('AR session started');
       } catch (err) {
         console.error('[WebXR] Failed to start AR session:', err);
         console.error('[WebXR] Error name:', err.name);
         console.error('[WebXR] Error message:', err.message);
-        showBlocker(`Failed to start AR session:\n${err.message}`);
+        console.error('[WebXR] Stack:', err.stack);
+        showBlocker(`Failed to start AR session:\n${err.message}\n\nTry:\n- Ensure camera permission is granted\n- Check device has ARCore/ARKit\n- Restart the app`);
       }
     }
   });
@@ -120,19 +121,19 @@ function initScene() {
   scene.add(controller);
 
   // Render loop
-  renderer.setAnimationLoop(async (ts, frame) => {
-    // Initialize reference space on first frame
-    if (!referenceSpace && frame) {
+  renderer.setAnimationLoop((ts, frame) => {
+    // Only process if we have an active XR session and frame
+    if (xrSession && frame) {
       try {
-        referenceSpace = await renderer.xr.getSession().requestReferenceSpace('local');
-        console.log('[App] Reference space initialized:', referenceSpace);
+        // Get the reference space from Three.js's internal XR manager
+        const refSpace = renderer.xr.getReferenceSpace();
+        if (refSpace) {
+          updateHitTest(frame, refSpace);
+        }
       } catch (err) {
-        console.error('[App] Failed to get reference space:', err);
-        return;
+        console.warn('[App] Reference space error (will retry):', err.message);
       }
     }
-
-    if (frame && referenceSpace) updateHitTest(frame, referenceSpace);
 
     // Follow reticle
     if (!pathPlaced && reticle.visible) {
