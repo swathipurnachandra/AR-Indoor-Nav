@@ -1,39 +1,36 @@
-let xrSession;
-let viewerSpace;
-let hitTestSource;
-
 AFRAME.registerComponent("ar-hit-test", {
   init: function () {
     const sceneEl = this.el.sceneEl;
 
+    this.reticle = document.getElementById("reticle");
+    this.hitTestSource = null;
+    this.viewerSpace = null;
+
     sceneEl.renderer.xr.addEventListener("sessionstart", async () => {
-      xrSession = sceneEl.renderer.xr.getSession();
+      const session = sceneEl.renderer.xr.getSession();
 
-      viewerSpace = await xrSession.requestReferenceSpace("viewer");
-      hitTestSource = await xrSession.requestHitTestSource({ space: viewerSpace });
+      this.viewerSpace = await session.requestReferenceSpace("viewer");
+      this.hitTestSource = await session.requestHitTestSource({
+        space: this.viewerSpace
+      });
 
-      console.log("Hit test ready.");
+      console.log("Hit-test ready.");
     });
 
     sceneEl.renderer.xr.addEventListener("sessionend", () => {
-      xrSession = null;
-      hitTestSource = null;
+      this.hitTestSource = null;
     });
-
-    this.reticle = document.getElementById("reticle");
   },
 
-  tick: function (time, frame) {
-    if (!frame || !hitTestSource) return;
+  tick: function (t, frame) {
+    if (!frame || !this.hitTestSource) return;
 
     const refSpace = this.el.sceneEl.renderer.xr.getReferenceSpace();
-    const hitTestResults = frame.getHitTestResults(hitTestSource);
+    const results = frame.getHitTestResults(this.hitTestSource);
 
-    if (hitTestResults.length > 0) {
-      const hit = hitTestResults[0];
-      const pose = hit.getPose(refSpace);
+    if (results.length > 0) {
+      const pose = results[0].getPose(refSpace);
 
-      this.reticle.visible = true;
       this.reticle.object3D.position.set(
         pose.transform.position.x,
         pose.transform.position.y,
@@ -46,26 +43,10 @@ AFRAME.registerComponent("ar-hit-test", {
         pose.transform.orientation.z,
         pose.transform.orientation.w
       );
+
+      this.reticle.setAttribute("visible", "true");
     } else {
-      this.reticle.visible = false;
+      this.reticle.setAttribute("visible", "false");
     }
-  }
-});
-
-// Load GLB Model
-AFRAME.registerComponent("load-model", {
-  init: function () {
-    const url = "your_model.glb"; // change your file here!
-    const loader = new THREE.GLTFLoader();
-
-    loader.load(
-      url,
-      gltf => {
-        this.el.setObject3D("mesh", gltf.scene);
-        console.log("Model loaded!");
-      },
-      xhr => console.log((xhr.loaded / xhr.total) * 100 + "% loaded"),
-      err => console.error("Model load error", err)
-    );
   }
 });

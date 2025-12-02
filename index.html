@@ -2,24 +2,19 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>WebAR Navigation</title>
+    <title>WebAR Test</title>
 
     <!-- A-Frame -->
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
 
-    <!-- THREE.js + Extras -->
+    <!-- THREE + GLTFLoader -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.161.0/examples/js/loaders/GLTFLoader.js"></script>
 
-    <!-- Your JS -->
     <script src="./app.js"></script>
 
     <style>
-      body, html {
-        margin: 0;
-        padding: 0;
-        overflow: hidden;
-      }
+      body { margin: 0; overflow: hidden; }
     </style>
   </head>
 
@@ -29,27 +24,28 @@
       renderer="colorManagement: true; physicallyCorrectLights: true;"
       embedded
       xr="optionalFeatures: hit-test;"
-      id="scene"
+      ar-hit-test
     >
+      <!-- ASSETS → must exist or A-frame breaks -->
+      <a-assets>
+        <!-- very simple ring model for reticle -->
+        <a-asset-item id="reticleModel" src="https://cdn.aframe.io/test-models/models/ring/scene.gltf"></a-asset-item>
+      </a-assets>
 
       <!-- Camera -->
-      <a-entity id="camera" camera look-controls></a-entity>
+      <a-entity id="cam" camera look-controls></a-entity>
 
-      <!-- Reticle for placement -->
+      <!-- Reticle -->
       <a-entity
         id="reticle"
+        gltf-model="#reticleModel"
         visible="false"
-        position="0 0 -1"
-        scale="0.2 0.2 0.2"
-        gltf-model="#ring"
+        scale="0.15 0.15 0.15"
       ></a-entity>
 
-      <!-- Minimal ambient light so objects don’t appear black -->
+      <!-- Lights so AR isn't dark -->
       <a-entity light="type: ambient; intensity: 1"></a-entity>
-
-      <!-- Directional light that follows the camera -->
-      <a-entity light="type: directional; intensity: 1.2" position="0 3 1"></a-entity>
-
+      <a-entity light="type: directional; intensity: 1.2" position="0 5 5"></a-entity>
     </a-scene>
   </body>
 </html>
