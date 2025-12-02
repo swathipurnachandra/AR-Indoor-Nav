@@ -8,9 +8,19 @@ export function setupHitTest(renderer, reticle) {
     const session = renderer.xr.getSession();
     if (!requested) {
       try {
-        const viewerSpace = await session.requestReferenceSpace('viewer');
+        // Try 'viewer' first, fallback to 'local' if not supported
+        let viewerSpace;
+        try {
+          viewerSpace = await session.requestReferenceSpace('viewer');
+        } catch (err) {
+          console.warn('[HitTest] viewer space not supported, trying local:', err.message);
+          viewerSpace = await session.requestReferenceSpace('local');
+        }
+
         hitTestSource = await session.requestHitTestSource({ space: viewerSpace });
         requested = true;
+        console.log('[HitTest] Hit test source acquired successfully');
+
         session.addEventListener('end', () => {
           hitTestSource = null;
           requested = false;
