@@ -1,9 +1,15 @@
 import * as THREE from 'three';
 import { setupHitTest } from './core/hit-test.js';
+import { createWaypoint } from './components/waypoint.js';
+import { computeYaw, createArrow as createArrowMesh } from './components/arrow.js';
+import { buildDemoPath } from './navigation/path.js';
 import { showBlocker, showOverlayButton, showToast } from './utils/ui.js';
 
 let renderer, scene, camera;
 let reticle, updateHitTest;
+let controller; // XR select controller
+let waypoints = [];
+let pathPlaced = false;
 
 // Entry
 initScene();
@@ -99,12 +105,25 @@ function initScene() {
   reticle.visible = false;
   scene.add(reticle);
 
-  // Placeholder arrow
-  const arrow = createPlaceholderArrow();
-  scene.add(arrow);
+  // A small reference arrow (follows reticle until a path is placed)
+  const reticleArrow = createArrowMesh({ color: 0x3fa9ff, length: 0.22, headRadius: 0.04 });
+  reticleArrow.name = 'reticle-arrow';
+  scene.add(reticleArrow);
 
   // Hit test integration
   updateHitTest = setupHitTest(renderer, reticle);
+
+  // XR controller (tap/select) to place a demo path at the reticle once
+  controller = renderer.xr.getController(0);
+  controller.addEventListener('select', () => {
+    if (pathPlaced) return;
+    if (!reticle.visible) {
+      showToast('Aim at a surface until the ring appears, then tap.');
+      return;
+    }
+    placeDemoPathAtReticle();
+  });
+  scene.add(controller);
 
   // Render loop
   renderer.setAnimationLoop((ts, frame) => {
@@ -112,21 +131,39 @@ function initScene() {
     if (frame) updateHitTest(frame, refSpace);
 
     // Follow reticle
-    if (reticle.visible) {
-      arrow.position.copy(reticle.position);
-      // console.log('[HitTest] reticle', reticle.position.toArray());
+    if (!pathPlaced && reticle.visible) {
+      reticleArrow.visible = true;
+      reticleArrow.position.copy(reticle.position);
+      // orient reticle arrow to match camera forward on XZ
+      const camDir = new THREE.Vector3();
+      camera.getWorldDirection(camDir);
+      camDir.y = 0; camDir.normalize();
+      const target = reticle.position.clone().add(camDir);
+      reticleArrow.rotation.y = computeYaw(reticle.position, target);
+    } else {
+      reticleArrow.visible = !pathPlaced && false;
     }
 
     renderer.render(scene, camera);
   });
 }
 
-function createPlaceholderArrow() {
-  // Simple box as a navigation arrow stand-in
-  const geo = new THREE.BoxGeometry(0.1, 0.1, 0.25);
-  const mat = new THREE.MeshStandardMaterial({ color: 0xff3f3f });
-  const mesh = new THREE.Mesh(geo, mat);
-  mesh.name = 'placeholder-arrow';
-  mesh.castShadow = false;
-  return mesh;
+function placeDemoPathAtReticle() {
+  const origin = reticle.position.clone();
+  const points = buildDemoPath(origin, camera);
+
+  // clear if re-placing (shouldn't happen with pathPlaced guard, but safe)
+  for (const wp of waypoints) scene.remove(wp);
+  waypoints = [];
+
+  for (let i = 0; i < points.length; i++) {
+    const p = points[i];
+    const next = points[i + 1] ?? points[i];
+    const yaw = computeYaw(p, next);
+    const wp = createWaypoint({ position: p, yaw });
+    scene.add(wp);
+    waypoints.push(wp);
+  }
+  pathPlaced = true;
+  showToast('Path placed. Tap again to do nothing (demo).');
 }
