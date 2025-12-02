@@ -13,15 +13,22 @@ let pathPlaced = false;
 
 // Entry
 initScene();
-detectAndStart();
+detectAndStart().catch(err => {
+  console.error('[App] Fatal error:', err);
+  showBlocker(`Fatal error: ${err.message}`);
+});
 
 // -------------------- Capability / Start Flow --------------------
 async function detectAndStart() {
+  console.log('=== AR Diagnostic Info ===');
+  console.log('Browser:', navigator.userAgent);
+  console.log('Platform:', navigator.platform);
+
   const xrAvailable = 'xr' in navigator;
-  console.log('[WebXR] navigator.xr:', xrAvailable);
+  console.log('[WebXR] navigator.xr available:', xrAvailable);
 
   if (!xrAvailable) {
-    showBlocker('WebXR not available on this browser/device.');
+    showBlocker('WebXR not available on this browser/device. Try Chrome, Edge, or Samsung Internet on Android.');
     return;
   }
 
@@ -31,10 +38,12 @@ async function detectAndStart() {
     console.log('[WebXR] immersive-ar supported:', arSupported);
   } catch (err) {
     console.warn('[WebXR] isSessionSupported error:', err);
+    showBlocker(`WebXR check failed: ${err.message}`);
+    return;
   }
 
   if (!arSupported) {
-    showBlocker('immersive-ar not supported on this device.');
+    showBlocker('immersive-ar not supported on this device. Ensure you have an AR-capable phone with Android/ARCore or iPhone with iOS 14+.');
     return;
   }
 
@@ -46,13 +55,17 @@ async function detectAndStart() {
       // then requestSession...
       try {
         const session = await navigator.xr.requestSession('immersive-ar', {
-          requiredFeatures: ['hit-test']
+          requiredFeatures: ['hit-test', 'dom-overlay'],
+          optionalFeatures: ['dom-overlay-for-handheld-ar'],
+          domOverlay: { root: document.getElementById('app-overlay') }
         });
         await renderer.xr.setSession(session);
         showToast('AR session started');
       } catch (err) {
         console.error('[WebXR] Failed to start AR session:', err);
-        showBlocker('Failed to start AR session.');
+        console.error('[WebXR] Error name:', err.name);
+        console.error('[WebXR] Error message:', err.message);
+        showBlocker(`Failed to start AR session:\n${err.message}`);
       }
     }
   });

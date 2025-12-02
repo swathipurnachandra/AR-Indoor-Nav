@@ -5,8 +5,9 @@ export function showBlocker(message = 'Unsupported.', options = {}) {
     align-items:center;justify-content:center;
     background:rgba(0,0,0,0.85);color:#fff;z-index:9999;
     padding:24px;text-align:center;font:16px system-ui;
+    overflow-y:auto;
   `;
-    div.innerHTML = `<div style="max-width:480px;line-height:1.4">${message}</div>`;
+    div.innerHTML = `<div style="max-width:480px;line-height:1.6;white-space:pre-wrap;word-wrap:break-word;text-align:left">${message}</div>`;
     if (options.dismiss) {
         const btn = document.createElement('button');
         btn.textContent = options.dismissLabel || 'Close';
