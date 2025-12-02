@@ -60,6 +60,18 @@ async function detectAndStart() {
           domOverlay: { root: document.getElementById('app-overlay') }
         });
         xrSession = session;
+
+        // Log supported reference spaces
+        console.log('[WebXR] Session created, checking reference spaces...');
+        for (const spaceType of ['viewer', 'local', 'local-floor']) {
+          try {
+            await session.requestReferenceSpace(spaceType);
+            console.log(`[WebXR] ✓ Reference space supported: ${spaceType}`);
+          } catch (e) {
+            console.log(`[WebXR] ✗ Reference space NOT supported: ${spaceType}`);
+          }
+        }
+
         await renderer.xr.setSession(session);
         showToast('AR session started');
       } catch (err) {
