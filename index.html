@@ -20,30 +20,32 @@
 
   <body>
     <a-scene
-      vr-mode-ui="enabled: false"
+      webxr="mode: ar; optionalFeatures: hit-test;"
       renderer="colorManagement: true; physicallyCorrectLights: true;"
-      embedded
-      xr="optionalFeatures: hit-test;"
       ar-hit-test
+      embedded
     >
-      <!-- ASSETS → must exist or A-frame breaks -->
+
+      <!-- ASSETS (WORKING MODEL — NO 404) -->
       <a-assets>
-        <!-- very simple ring model for reticle -->
-        <a-asset-item id="reticleModel" src="https://cdn.aframe.io/test-models/models/ring/scene.gltf"></a-asset-item>
+        <a-asset-item 
+          id="reticleModel"
+          src="https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/CesiumMan/glTF/CesiumMan.gltf">
+        </a-asset-item>
       </a-assets>
 
       <!-- Camera -->
       <a-entity id="cam" camera look-controls></a-entity>
 
-      <!-- Reticle -->
+      <!-- Reticle (shows when plane detected) -->
       <a-entity
         id="reticle"
         gltf-model="#reticleModel"
         visible="false"
-        scale="0.15 0.15 0.15"
+        scale="0.05 0.05 0.05"
       ></a-entity>
 
-      <!-- Lights so AR isn't dark -->
+      <!-- Lights (prevents black AR scene) -->
       <a-entity light="type: ambient; intensity: 1"></a-entity>
       <a-entity light="type: directional; intensity: 1.2" position="0 5 5"></a-entity>
     </a-scene>
