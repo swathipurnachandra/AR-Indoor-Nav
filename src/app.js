@@ -13,7 +13,9 @@ let xrSession = null;
 let isARMode = false;
 
 // Entry
+console.log('[App] Loading app...');
 initScene();
+console.log('[App] Scene initialized');
 startApp().catch(err => {
   console.error('[App] Fatal error:', err);
   showBlocker(`Fatal error: ${err.message}`);
@@ -21,15 +23,22 @@ startApp().catch(err => {
 
 // -------------------- Main App Entry --------------------
 async function startApp() {
-  console.log('=== AR Navigation App ===');
-  console.log('Browser:', navigator.userAgent);
-  console.log('Platform:', navigator.platform);
+  try {
+    console.log('=== AR Navigation App ===');
+    console.log('Browser:', navigator.userAgent);
+    console.log('Platform:', navigator.platform);
 
-  // Try AR first, fallback to camera mode
-  const arAvailable = await tryARMode();
+    // Try AR first, fallback to camera mode
+    console.log('[App] Trying AR mode...');
+    const arAvailable = await tryARMode();
 
-  if (!arAvailable) {
-    await tryCameraMode();
+    if (!arAvailable) {
+      console.log('[App] AR not available, trying camera mode...');
+      await tryCameraMode();
+    }
+  } catch (err) {
+    console.error('[App] startApp error:', err);
+    showBlocker(`Startup error: ${err.message}`);
   }
 }
 
@@ -121,9 +130,10 @@ async function tryCameraMode() {
 async function startCameraMode() {
   console.log('[App] Starting camera navigation mode');
   isARMode = false;
-  showToast('Camera Navigation Active');
-  // The 3D scene will render on top of the camera feed
-}// -------------------- 3D Scene Setup --------------------
+  showToast('Navigation mode active - tap to place path');
+}
+
+// -------------------- 3D Scene Setup --------------------
 function initScene() {
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
