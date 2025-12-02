@@ -2,59 +2,57 @@ import * as THREE from 'three';
 
 let hitTestSource = null;
 let requested = false;
-let usedReferenceSpace = null;
+let hitTestAvailable = false;
 
 export function setupHitTest(renderer, reticle) {
   renderer.xr.addEventListener('sessionstart', async () => {
     const session = renderer.xr.getSession();
     if (!requested) {
+      requested = true;
       try {
-        console.log('[HitTest] Setting up hit test source...');
+        console.log('[HitTest] Attempting to set up hit test...');
 
-        // Try different reference space types in order of preference
-        const spacesToTry = ['viewer', 'local', 'local-floor'];
-        let refSpace = null;
-
-        for (const spaceType of spacesToTry) {
-          try {
-            refSpace = await session.requestReferenceSpace(spaceType);
-            usedReferenceSpace = spaceType;
-            console.log(`[HitTest] Successfully created '${spaceType}' reference space`);
-            break;
-          } catch (err) {
-            console.warn(`[HitTest] '${spaceType}' not available: ${err.message}`);
-          }
-        }
-
-        if (!refSpace) {
-          console.error('[HitTest] No supported reference spaces available!');
-          return;
-        }
-
-        // Request hit test source
+        // Try to request hit test source with 'viewer' space
         try {
-          hitTestSource = await session.requestHitTestSource({ space: refSpace });
-          requested = true;
-          console.log(`[HitTest] Hit test source created successfully using '${usedReferenceSpace}'`);
+          const viewerSpace = await session.requestReferenceSpace('viewer');
+          hitTestSource = await session.requestHitTestSource({ space: viewerSpace });
+          hitTestAvailable = true;
+          console.log('[HitTest] ✓ Hit test enabled with viewer space');
         } catch (err) {
-          console.error('[HitTest] Failed to create hit test source:', err.message);
-          // Continue without hit test - still show 3D objects
+          console.warn('[HitTest] Viewer space hit test failed:', err.message);
+
+          // Try with 'local' space
+          try {
+            const localSpace = await session.requestReferenceSpace('local');
+            hitTestSource = await session.requestHitTestSource({ space: localSpace });
+            hitTestAvailable = true;
+            console.log('[HitTest] ✓ Hit test enabled with local space');
+          } catch (err2) {
+            console.warn('[HitTest] Local space hit test also failed:', err2.message);
+            console.log('[HitTest] Continuing without hit test - AR will work without reticle');
+            hitTestAvailable = false;
+          }
         }
 
         session.addEventListener('end', () => {
           hitTestSource = null;
           requested = false;
-          usedReferenceSpace = null;
+          hitTestAvailable = false;
           console.log('[HitTest] Session ended');
         });
       } catch (err) {
         console.error('[HitTest] Unexpected error:', err.message);
+        hitTestAvailable = false;
       }
     }
   });
 
   return function update(frame, referenceSpace) {
-    if (!hitTestSource || !frame) return;
+    // If hit test is not available, just hide reticle and return
+    if (!hitTestAvailable || !hitTestSource || !frame) {
+      reticle.visible = false;
+      return;
+    }
 
     try {
       const results = frame.getHitTestResults(hitTestSource);
@@ -75,7 +73,8 @@ export function setupHitTest(renderer, reticle) {
         reticle.visible = false;
       }
     } catch (err) {
-      console.warn('[HitTest] Error during hit test update:', err.message);
+      console.warn('[HitTest] Error during update:', err.message);
+      reticle.visible = false;
     }
   };
 }

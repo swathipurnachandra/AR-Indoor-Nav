@@ -54,24 +54,27 @@ async function detectAndStart() {
     onClick: async () => {
       if (!renderer) await new Promise(r => setTimeout(r, 50));
       try {
-        const session = await navigator.xr.requestSession('immersive-ar', {
-          requiredFeatures: ['hit-test'],
-          optionalFeatures: ['dom-overlay'],
-          domOverlay: { root: document.getElementById('app-overlay') }
-        });
-        xrSession = session;
-
-        // Log supported reference spaces
-        console.log('[WebXR] Session created, checking reference spaces...');
-        for (const spaceType of ['viewer', 'local', 'local-floor']) {
-          try {
-            await session.requestReferenceSpace(spaceType);
-            console.log(`[WebXR] ✓ Reference space supported: ${spaceType}`);
-          } catch (e) {
-            console.log(`[WebXR] ✗ Reference space NOT supported: ${spaceType}`);
-          }
+        // Try with hit-test first, fallback to basic AR if device doesn't support it
+        let session;
+        try {
+          console.log('[WebXR] Requesting session WITH hit-test...');
+          session = await navigator.xr.requestSession('immersive-ar', {
+            requiredFeatures: ['hit-test'],
+            optionalFeatures: ['dom-overlay'],
+            domOverlay: { root: document.getElementById('app-overlay') }
+          });
+          console.log('[WebXR] ✓ Hit-test session created');
+        } catch (hitTestErr) {
+          console.warn('[WebXR] Hit-test not supported, trying basic AR mode:', hitTestErr.message);
+          // Fallback: AR without hit-test
+          session = await navigator.xr.requestSession('immersive-ar', {
+            optionalFeatures: ['dom-overlay', 'hit-test'],
+            domOverlay: { root: document.getElementById('app-overlay') }
+          });
+          console.log('[WebXR] ✓ Basic AR session created (no hit-test)');
         }
 
+        xrSession = session;
         await renderer.xr.setSession(session);
         showToast('AR session started');
       } catch (err) {
