@@ -24,7 +24,7 @@ export function showOverlayButton({ label = 'Start', onClick }) {
     wrap.style.cssText = `
     position:fixed;inset:0;display:flex;align-items:center;
     justify-content:center;background:linear-gradient(180deg,
-    rgba(0,0,0,0.55),rgba(0,0,0,0.35));z-index:9998;
+    rgba(0,0,0,0.55),rgba(0,0,0,0.35));z-index:99999;
   `;
     const btn = document.createElement('button');
     btn.textContent = label;
@@ -39,6 +39,7 @@ export function showOverlayButton({ label = 'Start', onClick }) {
     };
     wrap.appendChild(btn);
     document.body.appendChild(wrap);
+    console.log('[UI] Button shown:', label);
     return () => wrap.remove();
 }
 

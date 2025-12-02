@@ -107,6 +107,13 @@ async function tryCameraMode() {
     const videoElement = document.getElementById('cam');
     if (videoElement) {
       videoElement.srcObject = stream;
+      videoElement.style.display = 'block';
+      videoElement.style.position = 'fixed';
+      videoElement.style.inset = '0';
+      videoElement.style.width = '100%';
+      videoElement.style.height = '100%';
+      videoElement.style.objectFit = 'cover';
+      videoElement.style.zIndex = '0';
       await videoElement.play();
       console.log('[App] Camera stream active');
     }
@@ -176,6 +183,14 @@ function initScene() {
 
   // Animation loop - works in both AR and camera mode
   renderer.setAnimationLoop((ts, frame) => {
+    // Make sure canvas doesn't block UI in camera mode
+    if (!isARMode) {
+      renderer.domElement.style.zIndex = '1';
+      renderer.domElement.style.pointerEvents = 'none';
+    } else {
+      renderer.domElement.style.zIndex = 'auto';
+      renderer.domElement.style.pointerEvents = 'auto';
+    }
     renderer.render(scene, camera);
   });
 }
